@@ -1,4 +1,37 @@
-Objetivo: Desenvolver um rate limiter em Go que possa ser configurado para limitar o número máximo de requisições por segundo com base em um endereço IP específico ou em um token de acesso.
+## How works:
+
+- Initialy are declare two globals variables ctx and client, after created a type RateLimiterConfig that is a struct.
+
+- func init(), is used for load variables .env and client of the redis.
+
+- In the func main init gin after created local variable ipConfig passing the configs of the ip pattern and below we use rateLimiterMiddleware passing a local variable ipConfig. The same happen with tokenConfig below and finally I used r.GET for set up the route and r.Run for set up the port ":8080".
+
+- The func handleRequest is used only take a message when status is ok.
+
+- The func rateLimiterMiddleware make role of intermediate the quantity of the requests. In your param pass the configs ip and token set ups. It logic implemented is when config.UseIP is true the key is set up the same below for token. After is used a func getLimit passing the key and limit and wait a limit or error. Then we have a count that is used for the quantity of requests and client.Expire is configured the block time, when the number of request pass for the maximum configured throw the message "You have reached the maximum number of requests or actions allowed within a certain time frame".
+
+- It func getLimit serves for get the limits set up in the .env or in database of redis. First get limit in redis, case don't have data this is insert in client.Set and return defaultLimit after compare if limitStr is different of empty string if have a value it convert of the string for int using strconv.Atoi(limitStr) and save data in limit. Other comparison if limit is equal defaultLimit return limit, is because for in case of the be different the new value passed in defaultLimit is save in redis in this case and return the value defaultLimit
+
+- In the func getEnvInt is used for get values in file .env
+
+## How to test:
+
+- set up in file .env the variables IP_LIMIT, TOKEN_LIMIT to configure maximum values for requests. When the values aren't pass, by default IP_LIMIT=10 and TOKEN_LIMIT=100.
+
+- Run the commands: `go run main.go` and `docker compose up -d redis`
+
+- Open in navigator the address: `http://localhost:8080/api/resource`
+  - When you use for navigator the the rate limit is used for ip
+- For test with token open the client request as Postman and set up in header request API_TOKEN. We put a public workspace for tests in Postman, but you to use ever other.
+  For Postman:
+
+  [<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/11060415-1638a203-8d64-43c1-a54d-3a952f52acf7?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D11060415-1638a203-8d64-43c1-a54d-3a952f52acf7%26entityType%3Dcollection%26workspaceId%3D7696cb39-b791-4810-a314-093dfe2d4ca0)
+
+## Automatic tests
+
+- Run `go test`
+
+<!-- Objetivo: Desenvolver um rate limiter em Go que possa ser configurado para limitar o número máximo de requisições por segundo com base em um endereço IP específico ou em um token de acesso.
 
 _Descrição_ : O objetivo deste desafio é criar um rate limiter em Go que possa ser utilizado para controlar o tráfego de requisições para um serviço web. O rate limiter deve ser capaz de limitar o número de requisições com base em dois critérios:
 
@@ -37,4 +70,4 @@ O código-fonte completo da implementação.
 Documentação explicando como o rate limiter funciona e como ele pode ser configurado.
 Testes automatizados demonstrando a eficácia e a robustez do rate limiter.
 Utilize docker/docker-compose para que possamos realizar os testes de sua aplicação.
-O servidor web deve responder na porta 8080.
+O servidor web deve responder na porta 8080. -->
