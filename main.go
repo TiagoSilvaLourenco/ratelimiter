@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
@@ -39,21 +40,14 @@ func init() {
 func main() {
 	r := gin.Default()
 
-	ipConfig := RateLimiterConfig{
-		Limit:     getEnvInt("IP_LIMIT", 10),
-		BlockTime: time.Second,
-		UseIP:     true,
-		UseToken:  false,
-	}
-	r.Use(rateLimiterMiddleware(ipConfig))
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"https://resttesttest.com"}
+	config.AllowHeaders = []string{"Content-Type", "API_KEY"}
+	config.AllowMethods = []string{"GET"}
+	config.AllowCredentials = true
 
-	tokenConfig := RateLimiterConfig{
-		Limit:     getEnvInt("TOKEN_LIMIT", 100),
-		BlockTime: 2 * time.Second,
-		UseIP:     false,
-		UseToken:  true,
-	}
-	r.Use(rateLimiterMiddleware(tokenConfig))
+	r.Use(cors.New(config))
+	r.Use(rateLimiterMiddleware())
 
 	r.GET("/api/resource", handleRequest)
 	r.Run(":8080")
@@ -63,24 +57,34 @@ func handleRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Request successful"})
 }
 
-func rateLimiterMiddleware(config RateLimiterConfig) gin.HandlerFunc {
+func rateLimiterMiddleware() gin.HandlerFunc {
+
 	return func(c *gin.Context) {
 		var key string
+		var limit int
+		blockTime := time.Second
 
-		if config.UseIP {
-			key = "ip:" + c.ClientIP()
-		} else if config.UseToken {
+		if c.GetHeader("API_KEY") != "" {
 			key = "token:" + c.GetHeader("API_KEY")
+			limit = getEnvInt("TOKEN_LIMIT", 100)
+
+		} else {
+			key = "ip:" + c.ClientIP()
+			limit = getEnvInt("IP_LIMIT", 10)
+			blockTime = blockTime * 2
 		}
 
-		limit, err := getLimit(key, config.Limit)
+		limit, err := getLimit(key, limit)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
 			return
 		}
-
 		count, _ := client.Incr(ctx, "count:"+key).Result()
-		client.Expire(ctx, "count:"+key, config.BlockTime)
+		client.Expire(ctx, "count:"+key, blockTime)
+
+		log.Println("count: ", count)
+		log.Println("key: ", key)
+		log.Println("limit: ", limit)
 
 		if count > int64(limit) {
 			c.JSON(http.StatusTooManyRequests, gin.H{"message": "You have reached the maximum number of requests or actions allowed within a certain time frame"})
@@ -94,7 +98,7 @@ func rateLimiterMiddleware(config RateLimiterConfig) gin.HandlerFunc {
 
 func getLimit(key string, defaultLimit int) (int, error) {
 	limitStr, err := client.Get(ctx, key).Result()
-
+	// log.Println("Limit: ", limitStr)
 	if err == redis.Nil {
 		client.Set(ctx, key, strconv.Itoa(defaultLimit), 0)
 		return defaultLimit, nil
@@ -108,6 +112,7 @@ func getLimit(key string, defaultLimit int) (int, error) {
 			return 0, err
 		}
 		if limit == defaultLimit {
+
 			return limit, nil
 		}
 	}
