@@ -32,13 +32,6 @@ func init() {
 	})})
 }
 
-type RateLimiterConfig struct {
-	Limit     int
-	BlockTime time.Duration
-	UseIP     bool
-	UseToken  bool
-}
-
 type Persistence interface {
 	GetLimit(key string, defaultLimit int) (int, error)
 	Incr(key string) (int64, error)
@@ -93,7 +86,7 @@ func main() {
 	r := gin.Default()
 
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"https://resttesttest.com"}
+	config.AllowOrigins = []string{"*"}
 	config.AllowHeaders = []string{"Content-Type", "API_KEY"}
 	config.AllowMethods = []string{"GET"}
 	config.AllowCredentials = true

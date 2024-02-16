@@ -1,16 +1,18 @@
 ## How works:
 
-- Initialy are declare two globals variables ctx and client, after created a type RateLimiterConfig that is a struct.
+- Initialy are declare two globals variables ctx and persistence.
 
-- func init(), is used for load variables .env and client of the redis.
+- func init(), is used for load variables .env and fill variable persistence with client of redis.
 
-- In the func main init gin after created local variable ipConfig passing the configs of the ip pattern and below we use rateLimiterMiddleware passing a local variable ipConfig. The same happen with tokenConfig below and finally I used r.GET for set up the route and r.Run for set up the port ":8080".
+- I created a interface Persistence to apply strategy pattern.
+
+- RedisPersistence is a struct for conector redis, the methods GetLimit, Incr and Expire inplements the logic for use of the Redis.
+
+- In the func main init gin.Default(), then set up a variable config to receive the configs of cors, so r.use inject the configs of cors in gin.
 
 - The func handleRequest is used only take a message when status is ok.
 
-- The func rateLimiterMiddleware make role of intermediate the quantity of the requests. In your param pass the configs ip and token set ups. It logic implemented is when config.UseIP is true the key is set up the same below for token. After is used a func getLimit passing the key and limit and wait a limit or error. Then we have a count that is used for the quantity of requests and client.Expire is configured the block time, when the number of request pass for the maximum configured throw the message "You have reached the maximum number of requests or actions allowed within a certain time frame".
-
-- It func getLimit serves for get the limits set up in the .env or in database of redis. First get limit in redis, case don't have data this is insert in client.Set and return defaultLimit after compare if limitStr is different of empty string if have a value it convert of the string for int using strconv.Atoi(limitStr) and save data in limit. Other comparison if limit is equal defaultLimit return limit, is because for in case of the be different the new value passed in defaultLimit is save in redis in this case and return the value defaultLimit
+- The func rateLimiterMiddleware make role of intermediate the quantity of the requests. In your param pass the persistence. It logic implemented is first create three vars in local scope key, limit and blockTime. In the first if else is to split when the request is by ip of token. So is filled the variable in each case. After persistence.GetLimit return the limit or error
 
 - In the func getEnvInt is used for get values in file .env
 
@@ -26,6 +28,15 @@
   For Postman:
 
   [<img src="https://run.pstmn.io/button.svg" alt="Run In Postman" style="width: 128px; height: 32px;">](https://god.gw.postman.com/run-collection/11060415-1638a203-8d64-43c1-a54d-3a952f52acf7?action=collection%2Ffork&source=rip_markdown&collection-url=entityId%3D11060415-1638a203-8d64-43c1-a54d-3a952f52acf7%26entityType%3Dcollection%26workspaceId%3D7696cb39-b791-4810-a314-093dfe2d4ca0)
+
+  ##### Obs: To use Postman is necessary download software Desktop Agent
+
+  - Alternatively you can use for website https://resttesttest.com/
+    - Click in + Add header button
+    - Filling empty fields, Header Name with API_KEY and Header Value with ever value
+    - Press f12 in navigator chrome for open developer tools
+    - Walk until network and click fetch/xhr
+    - Click button Ajax Request
 
 ## Automatic tests
 
