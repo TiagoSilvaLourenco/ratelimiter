@@ -1,39 +1,41 @@
 package main
 
 import (
-	"net/http"
-	"net/http/httptest"
+	"context"
 	"testing"
+	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestRateLimiterMiddleware(t *testing.T) {
-	r := gin.New()
-	r.Use(rateLimiterMiddleware(RateLimiterConfig{
-		Limit:     2,
-		BlockTime: 1,
-		UseIP:     true,
-		UseToken:  false,
-	}))
-
-	r.GET("/api/resource", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Request successful"})
+func TestRedisPersistence(t *testing.T) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "",
+		DB:       0,
 	})
 
-	req, err := http.NewRequest("GET", "/api/resource", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	r := &RedisPersistence{client: client}
 
-	req.Header.Set("X-Real-IP", "192.168.0.1")
+	t.Run("Test GetLimit", func(t *testing.T) {
+		limit, err := r.GetLimit("test", 10)
+		assert.NoError(t, err)
+		assert.Equal(t, 10, limit)
+	})
 
-	w := httptest.NewRecorder()
+	t.Run("Test Incr", func(t *testing.T) {
+		count, err := r.Incr("test")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
 
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("Esperava um código 200, mas obteve %d", w.Code)
-	}
-
+	t.Run("Test Expire", func(t *testing.T) {
+		err := r.Expire(context.Background(), "test", 1*time.Second)
+		assert.NoError(t, err)
+		time.Sleep(2 * time.Second)
+		val, err := r.client.Get(context.Background(), "test").Result()
+		assert.Equal(t, redis.Nil, err)
+		assert.Equal(t, "", val)
+	})
 }
